@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Адаптация и наставничество — Семейная Игра</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        
+        body { 
+            font-family: 'Nunito', sans-serif; 
+            background-color: #f8fafc; 
+            background-image: radial-gradient(#e2e8f0 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+            touch-action: manipulation; 
+            margin: 0;
+            padding: 0;
+        }
+
+        .card { border-radius: 20px; transition: transform 0.2s; }
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 30px; display: none; z-index: 2000; text-align: center; min-width: 250px; }
+        
+        #auth-screen { 
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); 
+        }
+
+        .icon-btn { transition: all 0.2s; border: 2px solid transparent; min-width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 1.5rem; background: #ffffff; }
+        .icon-btn.selected { border-color: #6366f1; background: #eef2ff; transform: scale(1.1); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        
+        .scroll-container {
+            display: flex;
+            gap: 0.75rem;
+            overflow-x: auto;
+            padding: 0.5rem 0.25rem 1rem 0.25rem;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .scroll-container::-webkit-scrollbar {
+            height: 6px;
+            display: block;
+        }
+        .scroll-container::-webkit-scrollbar-track {
+            background: #e5e7eb;
+            border-radius: 10px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #a5b4fc;
+            border-radius: 10px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #6366f1;
+        }
+    </style>
+</head>
+<body class="bg-[#f8fafc]">
+
+    <!-- Экран авторизации -->
+    <div id="auth-screen" class="fixed inset-0 z-[200] flex flex-col items-center justify-center p-6 text-white">
+        <div class="text-center mb-8">
+            <div class="bg-white text-indigo-600 w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-2xl mx-auto mb-6">
+                <i class="fas fa-graduation-cap"></i>
+            </div>
+            <h1 class="text-3xl font-black mb-2 uppercase text-white tracking-tight">Наставничество</h1>
+            <p class="opacity-90 font-medium">Профессиональный рост вместе</p>
+        </div>
+        <div class="w-full max-sm:max-w-xs space-y-4">
+            <input type="text" id="family-id-input" placeholder="Введите Ваш ID" class="w-full p-4 rounded-2xl text-gray-800 font-bold outline-none shadow-xl border-none text-center">
+            <button id="join-btn" onclick="joinFamily()" class="w-full bg-white text-indigo-600 font-black p-4 rounded-2xl shadow-xl active:scale-95 transition-transform uppercase tracking-widest">Войти в кабинет</button>
+            <p id="auth-status" class="text-center text-xs opacity-70 font-bold">Система готова</p>
+        </div>
+    </div>
+
+    <!-- Выбор роли -->
+    <div id="role-selection-screen" class="fixed inset-0 z-[100] hidden flex flex-col items-center justify-center p-6 text-white bg-indigo-600">
+        <h1 class="text-3xl font-black mb-8">Ваша роль в системе</h1>
+        <div class="grid grid-cols-1 gap-4 w-full max-w-md">
+            <button onclick="selectRole('child')" class="bg-white/20 border-2 border-white/30 p-8 rounded-[30px] flex flex-col items-center active:scale-95 transition-all hover:bg-white/30">
+                <i class="fas fa-user-graduate text-5xl mb-3"></i>
+                <span class="font-bold uppercase tracking-widest">Я Учитель</span>
+            </button>
+            <button onclick="selectRole('parent')" class="bg-white/20 border-2 border-white/30 p-8 rounded-[30px] flex flex-col items-center active:scale-95 transition-all hover:bg-white/30">
+                <i class="fas fa-chalkboard-teacher text-5xl mb-3"></i>
+                <span class="font-bold uppercase tracking-widest">Я Наставник</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Основной интерфейс -->
+    <div id="main-app" class="hidden">
+        <header class="bg-white/80 backdrop-blur-md p-4 shadow-sm flex justify-between items-center sticky top-0 z-50 border-b border-gray-100">
+            <div class="flex items-center gap-3">
+                <button onclick="resetApp()" class="bg-gray-100 text-gray-500 w-10 h-10 rounded-xl flex items-center justify-center active:bg-gray-200 transition-colors" title="Выйти">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-600 text-white p-2 rounded-lg shadow-md"><i id="header-icon" class="fas fa-star"></i></div>
+                    <div>
+                        <h1 id="display-family-id" class="text-xs font-black uppercase text-indigo-900 leading-none">ID</h1>
+                        <span id="role-label" class="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col items-end">
+                <div class="flex items-center bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                    <i class="fas fa-award text-indigo-500 mr-2"></i>
+                    <span id="total-coins" class="font-bold text-indigo-700 text-lg">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-md mx-auto p-4 pb-24">
+            <!-- Экран Ребенка -->
+            <section id="tab-child" class="hidden">
+                <h2 class="text-lg font-bold mb-4 text-indigo-900 flex items-center gap-2">
+                    <i class="fas fa-tasks text-indigo-500"></i> План развития
+                </h2>
+                <div id="tasks-list" class="space-y-3 mb-8"></div>
+
+                <h2 class="text-lg font-bold mb-4 text-pink-600 flex items-center gap-2">
+                    <i class="fas fa-gift text-pink-500"></i> Бонусы и поддержка
+                </h2>
+                <div id="shop-list" class="grid grid-cols-2 gap-3"></div>
+            </section>
+
+            <!-- Экран Родителя -->
+            <section id="tab-parent" class="hidden">
+                <div id="purchase-notifications" class="mb-6 hidden">
+                    <h2 class="font-bold mb-3 text-red-500 flex items-center gap-2">
+                        <i class="fas fa-bell"></i> Запросы на поддержку
+                    </h2>
+                    <div id="notifications-list" class="space-y-2"></div>
+                </div>
+
+                <div class="bg-white p-5 rounded-3xl shadow-sm mb-6 border border-gray-100">
+                    <h3 class="font-bold mb-3 text-indigo-900 text-sm uppercase tracking-wider">Назначить задачу</h3>
+                    <div id="task-icons" class="scroll-container mb-2"></div>
+                    <input type="text" id="new-task-name" placeholder="Название активности" class="w-full p-3 mb-2 border border-gray-100 rounded-xl outline-none focus:ring-2 ring-indigo-100 bg-gray-50">
+                    <div class="flex gap-2">
+                        <input type="number" id="new-task-reward" placeholder="Баллы" class="w-1/3 p-3 border border-gray-100 rounded-xl outline-none focus:ring-2 ring-indigo-100 bg-gray-50">
+                        <button onclick="addTask()" class="flex-1 bg-indigo-600 text-white font-bold rounded-xl active:bg-indigo-700 uppercase text-sm">Создать</button>
+                    </div>
+                </div>
+
+                <h2 class="font-bold mb-3 text-indigo-900 flex items-center gap-2">
+                    <i class="fas fa-clipboard-check text-indigo-500"></i> На подтверждение
+                </h2>
+                <div id="approval-list" class="space-y-3 mb-8"></div>
+
+                <div class="bg-white p-5 rounded-3xl shadow-sm mb-6 border border-gray-100">
+                    <h3 class="font-bold mb-3 text-pink-600 text-sm uppercase tracking-wider">Добавить поощрение</h3>
+                    <div id="reward-icons" class="scroll-container mb-2"></div>
+                    <input type="text" id="new-reward-name" placeholder="Описание бонуса" class="w-full p-3 mb-2 border border-gray-100 rounded-xl outline-none focus:ring-2 ring-pink-50 bg-gray-50">
+                    <div class="flex gap-2">
+                        <input type="number" id="new-reward-cost" placeholder="Стоимость" class="w-1/3 p-3 border border-gray-100 rounded-xl outline-none bg-gray-50">
+                        <button onclick="addReward()" class="flex-1 bg-pink-500 text-white font-bold rounded-xl active:bg-pink-600 uppercase text-sm">Добавить</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBGcARI8sUrybrNFcrZ3hWEBLXxtrE68Ks",
+            authDomain: "game-5f559.firebaseapp.com",
+            projectId: "game-5f559",
+            storageBucket: "game-5f559.firebasestorage.app",
+            messagingSenderId: "480930791950",
+            appId: "1:480930791950:web:d0f1fa4355b2419227325f"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'master-del-v4-final';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        let familyId = localStorage.getItem('family_id');
+        let currentRole = localStorage.getItem('user_role');
+        let familyData = { coins: 0, tasks: [], rewards: [], purchases: [] };
+        let isAuthReady = false;
+        let unsubscribeSync = null;
+
+        let selectedTaskIcon = '📚';
+        let selectedRewardIcon = '🎓';
+
+        const taskEmojiList = ['📚', '📝', '📂', '💻', '🖋️', '🏫', '📊', '🧠', '📅', '🔍', '📋', '📎', '📁', '🎓', '💡', '💬', '📢', '🧪', '🌍', '📐'];
+        const rewardEmojiList = ['🎓', '☕', '🌟', '🏆', '💎', '🎟️', '🍕', '🍰', '🎁', '📅', '🛋️', '📚', '🤝', '⚡', '🌈', '🏅', '🎖️', '✅', '👑', '🚀'];
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) { console.error("Auth Error:", err); }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isAuthReady = true;
+                const statusEl = document.getElementById('auth-status');
+                if(statusEl) statusEl.innerText = "Система активна";
+                if (familyId) startSync();
+            }
+        });
+
+        initAuth();
+
+        window.joinFamily = async () => {
+            if (!isAuthReady) return;
+            const input = document.getElementById('family-id-input').value.trim().toLowerCase();
+            if (!input) return;
+            
+            familyId = input;
+            localStorage.setItem('family_id', familyId);
+            
+            const familyRef = doc(db, 'artifacts', appId, 'public', 'data', 'families', familyId);
+            try {
+                const snap = await getDoc(familyRef);
+                if (!snap.exists()) {
+                    await setDoc(familyRef, { 
+                        coins: 0, 
+                        tasks: [
+                            {id: 1, name: 'Подготовить план урока', icon: '📚', reward: 10, status: 'none'},
+                            {id: 2, name: 'Заполнить журнал', icon: '📝', reward: 5, status: 'none'},
+                            {id: 3, name: 'Проверить тетради', icon: '🖋️', reward: 15, status: 'none'},
+                            {id: 4, name: 'Смена дежурства', icon: '🧹', reward: 5, status: 'none'}
+                        ], 
+                        rewards: [
+                            {id: 1, name: 'Методическая консультация', icon: '🎓', cost: 20},
+                            {id: 2, name: 'Доп. перерыв', icon: '☕', cost: 30},
+                            {id: 3, name: 'Мастер-класс от наставника', icon: '🌟', cost: 50}
+                        ],
+                        purchases: [] 
+                    });
+                }
+                startSync();
+            } catch (e) { showToast("Ошибка подключения"); }
+        };
+
+        function startSync() {
+            if (unsubscribeSync) unsubscribeSync();
+            
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('display-family-id').innerText = familyId;
+            
+            const familyRef = doc(db, 'artifacts', appId, 'public', 'data', 'families', familyId);
+            unsubscribeSync = onSnapshot(familyRef, (d) => { 
+                if (d.exists()) { 
+                    familyData = d.data(); 
+                    if (!familyData.purchases) familyData.purchases = [];
+                    render(); 
+                } 
+            }, (err) => console.error("Snapshot error", err));
+
+            if (currentRole) showMain();
+            else document.getElementById('role-selection-screen').classList.remove('hidden');
+            initIconPickers();
+        }
+
+        function initIconPickers() {
+            const tContainer = document.getElementById('task-icons');
+            const rContainer = document.getElementById('reward-icons');
+            if(!tContainer || !rContainer) return;
+            
+            tContainer.innerHTML = taskEmojiList.map(emoji => `
+                <button onclick="selectIcon('task', '${emoji}')" id="t-icon-${emoji}" class="icon-btn ${emoji === selectedTaskIcon ? 'selected' : ''}">${emoji}</button>
+            `).join('');
+
+            rContainer.innerHTML = rewardEmojiList.map(emoji => `
+                <button onclick="selectIcon('reward', '${emoji}')" id="r-icon-${emoji}" class="icon-btn ${emoji === selectedRewardIcon ? 'selected' : ''}">${emoji}</button>
+            `).join('');
+        }
+
+        window.selectIcon = (type, emoji) => {
+            if (type === 'task') {
+                document.querySelectorAll('#task-icons button').forEach(b => b.classList.remove('selected'));
+                selectedTaskIcon = emoji;
+                const btn = document.getElementById(`t-icon-${emoji}`);
+                if(btn) btn.classList.add('selected');
+            } else {
+                document.querySelectorAll('#reward-icons button').forEach(b => b.classList.remove('selected'));
+                selectedRewardIcon = emoji;
+                const btn = document.getElementById(`r-icon-${emoji}`);
+                if(btn) btn.classList.add('selected');
+            }
+        };
+
+        window.selectRole = (role) => {
+            currentRole = role;
+            localStorage.setItem('user_role', role);
+            document.getElementById('role-selection-screen').classList.add('hidden');
+            showMain();
+        };
+
+        function showMain() {
+            document.getElementById('main-app').classList.remove('hidden');
+            document.getElementById('tab-child').classList.toggle('hidden', currentRole !== 'child');
+            document.getElementById('tab-parent').classList.toggle('hidden', currentRole !== 'parent');
+            document.getElementById('role-label').innerText = currentRole === 'child' ? 'Учитель' : 'Наставник';
+            document.getElementById('header-icon').className = currentRole === 'child' ? "fas fa-user-graduate" : "fas fa-chalkboard-teacher";
+            render();
+        }
+
+        async function updateCloud() {
+            if (!isAuthReady || !familyId) return;
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'families', familyId), familyData);
+        }
+
+        window.addTask = async () => {
+            const name = document.getElementById('new-task-name').value.trim();
+            const reward = parseInt(document.getElementById('new-task-reward').value);
+            if (!name || !reward) return;
+            if (!familyData.tasks) familyData.tasks = [];
+            familyData.tasks.push({ id: Date.now(), name, icon: selectedTaskIcon, reward, status: 'none' });
+            await updateCloud();
+            document.getElementById('new-task-name').value = '';
+            document.getElementById('new-task-reward').value = '';
+            showToast("Задание добавлено");
+        };
+
+        window.addReward = async () => {
+            const name = document.getElementById('new-reward-name').value.trim();
+            const cost = parseInt(document.getElementById('new-reward-cost').value);
+            if (!name || !cost) return;
+            if (!familyData.rewards) familyData.rewards = [];
+            familyData.rewards.push({ id: Date.now(), name, icon: selectedRewardIcon, cost });
+            await updateCloud();
+            document.getElementById('new-reward-name').value = '';
+            document.getElementById('new-reward-cost').value = '';
+            showToast("Приз добавлен");
+        };
+
+        window.completeTask = async (id) => {
+            const task = familyData.tasks.find(t => t.id === id);
+            if (task) { task.status = 'pending'; await updateCloud(); showToast("Отчет отправлен"); }
+        };
+
+        window.approveTask = async (id) => {
+            const idx = familyData.tasks.findIndex(t => t.id === id);
+            if (idx !== -1) {
+                familyData.coins = (familyData.coins || 0) + familyData.tasks[idx].reward;
+                familyData.tasks.splice(idx, 1);
+                await updateCloud();
+                showToast("Активность одобрена");
+            }
+        };
+
+        window.rejectTask = async (id) => {
+            const task = familyData.tasks.find(t => t.id === id);
+            if (task) {
+                task.status = 'none';
+                await updateCloud();
+                showToast("Отправлено на доработку");
+            }
+        };
+
+        window.buyReward = async (id) => {
+            const reward = familyData.rewards.find(r => r.id === id);
+            if (reward && familyData.coins >= reward.cost) {
+                familyData.coins -= reward.cost;
+                if (!familyData.purchases) familyData.purchases = [];
+                familyData.purchases.unshift({
+                    id: Date.now(),
+                    name: reward.name,
+                    icon: reward.icon,
+                    date: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    status: 'new'
+                });
+                showToast(`Запрошено: ${reward.name}`);
+                await updateCloud();
+            } else showToast("Недостаточно баллов");
+        };
+
+        window.dismissNotification = async (id) => {
+            const p = familyData.purchases.find(x => x.id === id);
+            if (p) {
+                p.status = 'seen';
+                await updateCloud();
+            }
+        };
+
+        function render() {
+            const coinsEl = document.getElementById('total-coins');
+            if(coinsEl) coinsEl.innerText = familyData.coins || 0;
+            const tasks = familyData.tasks || [];
+            const rewards = familyData.rewards || [];
+            
+            if (currentRole === 'parent') {
+                const notifArea = document.getElementById('purchase-notifications');
+                const notifList = document.getElementById('notifications-list');
+                const newPurchases = (familyData.purchases || []).filter(p => p.status === 'new');
+                
+                if (newPurchases.length > 0) {
+                    notifArea.classList.remove('hidden');
+                    notifList.innerHTML = newPurchases.map(p => `
+                        <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl flex justify-between items-center shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">${p.icon}</span>
+                                <div>
+                                    <p class="text-xs font-black text-gray-800 uppercase leading-none">Учитель запросил: ${p.name}</p>
+                                    <p class="text-[10px] text-gray-400 mt-1">${p.date}</p>
+                                </div>
+                            </div>
+                            <button onclick="dismissNotification(${p.id})" class="text-indigo-400 hover:text-indigo-600 px-2"><i class="fas fa-check-circle text-lg"></i></button>
+                        </div>
+                    `).join('');
+                } else {
+                    notifArea.classList.add('hidden');
+                }
+            }
+
+            const tl = document.getElementById('tasks-list');
+            if(tl) {
+                const childTasks = tasks.filter(t => t.status !== 'pending');
+                tl.innerHTML = childTasks.length ? childTasks.map(t => `
+                    <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="text-2xl">${t.icon || '📝'}</div>
+                            <div>
+                                <p class="font-bold text-gray-800">${t.name}</p>
+                                <p class="text-[10px] font-black text-indigo-500 bg-indigo-50 inline-block px-2 rounded-full mt-1">+${t.reward} Б.</p>
+                            </div>
+                        </div>
+                        <button onclick="completeTask(${t.id})" class="bg-indigo-50 text-indigo-600 w-11 h-11 rounded-2xl active:bg-indigo-600 active:text-white transition-all">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                `).join('') : '<div class="text-center bg-white/50 p-6 rounded-3xl border-2 border-dashed border-gray-200 text-gray-400 text-sm">План выполнен! Новые задачи появятся позже.</div>';
+            }
+
+            const sl = document.getElementById('shop-list');
+            if(sl) {
+                sl.innerHTML = rewards.length ? rewards.map(r => {
+                    const canAfford = familyData.coins >= r.cost;
+                    return `
+                    <div onclick="buyReward(${r.id})" class="bg-white p-4 rounded-3xl text-center shadow-sm border border-gray-100 ${canAfford ? 'active:scale-95' : 'opacity-60'} transition-all cursor-pointer">
+                        <div class="text-3xl mb-2">${r.icon || '🎁'}</div>
+                        <p class="text-[11px] font-black text-gray-700 uppercase leading-tight mb-2 h-8 flex items-center justify-center">${r.name}</p>
+                        <div class="inline-block ${canAfford ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'} text-[10px] font-black px-3 py-1 rounded-full">
+                            ${r.cost} Б.
+                        </div>
+                    </div>
+                    `;
+                }).join('') : '<p class="col-span-2 text-center text-gray-400 text-xs py-4">Бонусы пока не добавлены</p>';
+            }
+
+            const al = document.getElementById('approval-list');
+            if(al) {
+                const pending = tasks.filter(t => t.status === 'pending');
+                al.innerHTML = pending.length ? pending.map(t => `
+                    <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-md border border-yellow-100">
+                        <div class="flex items-center gap-3">
+                             <div class="text-xl">${t.icon || '📝'}</div>
+                             <div>
+                                <p class="font-bold text-sm text-gray-800">${t.name}</p>
+                                <p class="text-[10px] text-yellow-600 font-bold uppercase">Награда: ${t.reward} Б.</p>
+                             </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="rejectTask(${t.id})" class="bg-red-50 text-red-500 w-10 h-10 rounded-xl active:scale-90 transition-all flex items-center justify-center" title="На доработку">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button onclick="approveTask(${t.id})" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-black active:scale-90 transition-all uppercase">Принять</button>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-center text-gray-400 text-xs py-6 border-2 border-dashed border-gray-100 rounded-3xl italic">Запросов нет</p>';
+            }
+        }
+
+        window.resetApp = () => { 
+            localStorage.removeItem('family_id');
+            localStorage.removeItem('user_role');
+            familyId = null;
+            currentRole = null;
+            
+            if (unsubscribeSync) {
+                unsubscribeSync();
+                unsubscribeSync = null;
+            }
+
+            document.getElementById('main-app').classList.add('hidden');
+            document.getElementById('tab-child').classList.add('hidden');
+            document.getElementById('tab-parent').classList.add('hidden');
+            document.getElementById('role-selection-screen').classList.add('hidden');
+            
+            document.getElementById('family-id-input').value = '';
+            document.getElementById('auth-screen').classList.remove('hidden');
+        };
+        
+        function showToast(m) { const t=document.getElementById('toast'); if(t) { t.innerText=m; t.style.display='block'; setTimeout(()=>t.style.display='none', 2000); } }
+    </script>
+</body>
+</html>
